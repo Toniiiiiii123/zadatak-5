@@ -1,0 +1,101 @@
+server1.py
+import socket
+
+HOST = 'localhost'
+PORT = 65432
+
+with open('data.txt', 'r') as file:
+    data = file.read()
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.bind((HOST, PORT))
+    s.listen()
+
+    print("Server 1 radi...")
+
+    conn, addr = s.accept()
+
+    with conn:
+        print("Povezan:", addr)
+        conn.sendall(data.encode())
+
+server2.py
+import socket
+
+HOST = 'localhost'
+PORT = 65433
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+    server.bind((HOST, PORT))
+    server.listen()
+
+    print("Server 2 radi...")
+
+    conn, addr = server.accept()
+
+    with conn:
+        zahtev = conn.recv(1024).decode()
+
+        if zahtev == "replicate":
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect(('localhost', 65432))
+
+                data = s.recv(1024).decode()
+
+                with open('data.txt', 'w') as file:
+                    file.write(data)
+
+            conn.sendall(b"Replikacija uspesno zavrsena")
+
+middleware.py
+import socket
+
+imenik = {
+    "data.txt": {
+        "original": ("localhost", 65432),
+        "kopija": ("localhost", 65433)
+    }
+}
+
+HOST = 'localhost'
+PORT = 8000
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as middleware:
+    middleware.bind((HOST, PORT))
+    middleware.listen()
+
+    print("Middleware radi...")
+
+    client, addr = middleware.accept()
+
+    with client:
+        naziv_fajla = client.recv(1024).decode()
+
+        if naziv_fajla in imenik:
+            server2 = imenik[naziv_fajla]["kopija"]
+
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect(server2)
+                s.sendall(b"replicate")
+
+                odgovor = s.recv(1024).decode()
+
+            client.sendall(odgovor.encode())
+        else:
+            client.sendall(b"Fajl nije pronadjen")
+
+
+client.py
+import socket
+
+HOST = 'localhost'
+PORT = 8000
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect((HOST, PORT))
+
+    s.sendall(b"data.txt")
+
+    odgovor = s.recv(1024).decode()
+
+    print(odgovor)
