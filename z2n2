@@ -1,0 +1,100 @@
+server.py
+
+
+import socket
+import threading
+
+host = '0.0.0.0'
+port = 12345
+
+client_sockets = []
+
+def handle_client(client_socket, address):
+global client_sockets
+
+print(f"Accepted connection from {address}")
+client_sockets.append(client_socket)
+
+while True:
+try:
+data = client_socket.recv(1024)
+
+if not data:
+break
+
+message = data.decode()
+print(f"Message from {address}: {message}")
+
+for s in client_sockets:
+if s != client_socket:
+s.send(data)
+
+except Exception as e:
+print(f"Error: {e}")
+break
+
+client_sockets.remove(client_socket)
+client_socket.close()
+
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((host, port))
+server.listen(5)
+
+print(f"Server listening on {host}:{port}")
+
+while True:
+client_socket, address = server.accept()
+
+client_thread = threading.Thread(
+target=handle_client,
+args=(client_socket, address)
+)
+
+client_thread.start()
+
+
+
+
+
+client.py
+import socket
+import threading
+
+host = '127.0.0.1'
+port = 12345
+
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.connect((host, port))
+
+
+def receive_messages():
+while True:
+try:
+message = client_socket.recv(1024).decode()
+
+if not message:
+break
+
+print("\nPoruka:", message)
+
+except Exception as e:
+print("Error:", e)
+break
+
+
+receive_thread = threading.Thread(target=receive_messages)
+receive_thread.start()
+
+
+while True:
+message = input("Unesi poruku: ")
+
+if message == "exit":
+break
+
+client_socket.send(message.encode())
+
+
+client_socket.close()
+
