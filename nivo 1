@@ -1,0 +1,35 @@
+import asyncio
+import functools
+
+def timeout_decorator(seconds):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await asyncio.wait_for(
+                    func(*args, **kwargs),
+                    timeout=seconds
+                )
+            except asyncio.TimeoutError:
+                return "Vreme čekanja isteklo"
+        return wrapper
+    return decorator
+
+
+async def server(vreme_odgovora):
+    await asyncio.sleep(vreme_odgovora)
+    return "Odgovor servera"
+
+
+@timeout_decorator(2)
+async def middleware(vreme_odgovora):
+    odgovor = await server(vreme_odgovora)
+    return odgovor
+
+
+async def client():
+    odgovor = await middleware(3)
+    print(odgovor)
+
+
+asyncio.run(client())
